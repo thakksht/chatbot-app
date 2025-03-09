@@ -14,13 +14,49 @@ const App = () => {
     setIsOpen(!isOpen);
   };
 
-  const handleFormSubmit = (e) => {
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
     const messageInput = e.target.elements.message;
     const newMessage = messageInput.value.trim();
     if (newMessage) {
-      setMessages([...messages, { type: "user", text: newMessage }]);
+      setMessages([...messages, { type: "user", text: newMessage }, { type: "bot", text: "Generating response..." }]);
       messageInput.value = "";
+
+      try {
+        // Call Gemini API
+        const response = await fetch("https://generativelanguage.googleapis.com/v1beta2/models/gemini-2.0-flash:generateText?key=AIzaSyA7AFkDl6Yifaj3I7WHgeFBxvbdQGGh_zU", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            prompt: {
+              text: newMessage,
+            },
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(`Error: ${response.status} ${response.statusText} - ${JSON.stringify(errorData)}`);
+        }
+
+        const data = await response.json();
+        const botResponse = data.candidates?.[0]?.output || "Sorry, I couldn't generate a response.";
+
+        setMessages((prevMessages) => [
+          ...prevMessages.slice(0, -1),
+          { type: "bot", text: botResponse },
+        ]);
+      } catch (error) {
+        console.error("Error generating response:", error);
+        console.error("Response status:", error.response?.status);
+        console.error("Response data:", error.response?.data);
+        setMessages((prevMessages) => [
+          ...prevMessages.slice(0, -1),
+          { type: "bot", text: "Sorry, there was an error generating a response." },
+        ]);
+      }
     }
   };
 
